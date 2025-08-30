@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(gdb:*)",
+      "Bash(./mma_test)",
+      "Bash(nvcc:*)",
+      "Bash(./simple_test)",
+      "Bash(./mma_simplified)",
+      "Bash(./debug_mma)",
+      "Bash(./mma_final)",
+      "Bash(./ping_pong_test)",
+      "Bash(./warp_specialized_test)",
+      "Bash(./wgmma_test)",
+      "Bash(ncu:*)",
+      "Bash(./warp_specialized_optimized_test)",
+      "Bash(./warp_simple_opt_test)",
+      "Bash(./warp_final_opt_test)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,54 @@
+# Build artifacts
+*.o
+*.so
+*.a
+build/
+*.exe
+
+# CUDA compiled files
+*.ptx
+*.cubin
+*.fatbin
+
+# Test executables
+test_*
+!test_*.cu
+!test_*.cpp
+
+# Temporary files
+*.tmp
+*.log
+core
+core.*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Profiling files
+*.nsight-cuprof-report
+*.nvprof
+*.qdrep
+
+# Specific executables
+cublas_comparison
+wgmma_async_example
+layernorm_test
+marlin_tensor_test
+wgmma_test
+warp_test
+warp_specialized_async_test
+
+# Build output
+/src/kernels/*.so
+/src/kernels/test_*
+/src/kernels/wgmma_test
+/src/kernels/warp_test
+/src/kernels/*_test
