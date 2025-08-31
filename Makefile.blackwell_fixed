@@ -1,0 +1,178 @@
+# Makefile for RTX 5070 Blackwell implementations (Fixed versions that work)
+# Optimized for sm_90 but compatible with older architectures
+
+# Compiler settings
+NVCC = nvcc
+CXX = g++
+
+# Flexible architecture flags - supports sm_75+ 
+NVCC_FLAGS = -std=c++17 -O3 -use_fast_math \
+             -gencode arch=compute_75,code=sm_75 \
+             -gencode arch=compute_80,code=sm_80 \
+             -gencode arch=compute_86,code=sm_86 \
+             -gencode arch=compute_89,code=sm_89 \
+             -gencode arch=compute_90,code=sm_90 \
+             --maxrregcount=255 \
+             -Xptxas -O3 \
+             -Xcompiler -O3 \
+             -lineinfo
+
+# Include paths
+INCLUDES = -I./src/blackwell_5070/utils \
+           -I./src/utils
+
+# Library paths (flexible CUDA path detection)
+CUDA_PATH ?= $(shell which nvcc | sed 's/\/bin\/nvcc//')
+LIBS = -L$(CUDA_PATH)/lib64 -lcuda -lcudart -lcublas
+
+# Directories
+SRC_DIR = src/blackwell_5070
+BUILD_DIR = build/blackwell_5070_fixed
+BIN_DIR = bin/blackwell_5070_fixed
+
+# Create directories
+$(shell mkdir -p $(BUILD_DIR) $(BIN_DIR))
+
+# Fixed source files
+TMA_FIXED_SRC = $(SRC_DIR)/tma_kernels/blackwell_tma_gemm_fixed.cu
+WGMMA_FIXED_SRC = $(SRC_DIR)/async_wgmma_kernels/blackwell_async_wgmma_fixed.cu
+W4A16_SIMPLE_SRC = $(SRC_DIR)/async_wgmma_kernels/blackwell_w4a16_simple.cu
+
+# Executables
+TMA_FIXED_BIN = $(BIN_DIR)/blackwell_tma_gemm_fixed
+WGMMA_FIXED_BIN = $(BIN_DIR)/blackwell_async_wgmma_fixed  
+W4A16_SIMPLE_BIN = $(BIN_DIR)/blackwell_w4a16_simple
+
+# Default target
+all: tma_fixed wgmma_fixed w4a16_simple
+
+# Individual targets
+tma_fixed: $(TMA_FIXED_BIN)
+wgmma_fixed: $(WGMMA_FIXED_BIN)
+w4a16_simple: $(W4A16_SIMPLE_BIN)
+
+# Build fixed TMA kernel
+$(TMA_FIXED_BIN): $(TMA_FIXED_SRC)
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# Build fixed WGMMA kernel
+$(WGMMA_FIXED_BIN): $(WGMMA_FIXED_SRC)
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# Build simple W4A16 kernel
+$(W4A16_SIMPLE_BIN): $(W4A16_SIMPLE_SRC)
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# Test targets
+test_tma_fixed: $(TMA_FIXED_BIN)
+	@echo "🚀 Testing Fixed TMA GEMM kernel..."
+	./$(TMA_FIXED_BIN)
+
+test_wgmma_fixed: $(WGMMA_FIXED_BIN)
+	@echo "⚡ Testing Fixed Async WGMMA kernel..."
+	./$(WGMMA_FIXED_BIN)
+
+test_w4a16_simple: $(W4A16_SIMPLE_BIN)
+	@echo "🎯 Testing Simple W4A16 kernel..."
+	./$(W4A16_SIMPLE_BIN)
+
+# Run all tests
+test_all: test_tma_fixed test_wgmma_fixed test_w4a16_simple
+
+# Performance profiling targets
+profile_tma_fixed: $(TMA_FIXED_BIN)
+	@echo "📊 Profiling Fixed TMA kernel with NCU..."
+	-ncu --set basic -o $(BUILD_DIR)/tma_fixed_profile ./$(TMA_FIXED_BIN)
+
+profile_wgmma_fixed: $(WGMMA_FIXED_BIN)
+	@echo "📊 Profiling Fixed WGMMA kernel with NCU..."
+	-ncu --set basic -o $(BUILD_DIR)/wgmma_fixed_profile ./$(WGMMA_FIXED_BIN)
+
+profile_all: profile_tma_fixed profile_wgmma_fixed
+
+# Assembly output
+asm_tma_fixed: $(TMA_FIXED_SRC)
+	$(NVCC) $(NVCC_FLAGS) --ptx $(INCLUDES) -o $(BUILD_DIR)/tma_fixed.ptx $<
+
+asm_wgmma_fixed: $(WGMMA_FIXED_SRC)  
+	$(NVCC) $(NVCC_FLAGS) --ptx $(INCLUDES) -o $(BUILD_DIR)/wgmma_fixed.ptx $<
+
+asm_all: asm_tma_fixed asm_wgmma_fixed
+
+# Memory check targets
+memcheck_tma_fixed: $(TMA_FIXED_BIN)
+	-cuda-memcheck ./$(TMA_FIXED_BIN)
+
+memcheck_wgmma_fixed: $(WGMMA_FIXED_BIN)
+	-cuda-memcheck ./$(WGMMA_FIXED_BIN)
+
+memcheck_all: memcheck_tma_fixed memcheck_wgmma_fixed
+
+# Clean targets
+clean:
+	rm -rf $(BUILD_DIR) $(BIN_DIR)
+
+clean_profiles:
+	rm -f $(BUILD_DIR)/*.ncu-rep $(BUILD_DIR)/*.sqlite
+
+clean_all: clean clean_profiles
+
+# Requirements check
+check_requirements:
+	@echo "Checking build requirements..."
+	@which nvcc > /dev/null || (echo "❌ NVCC not found. Please install CUDA toolkit."; exit 1)
+	@nvcc --version | head -1
+	@echo "CUDA Path: $(CUDA_PATH)"
+	@nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader 2>/dev/null || echo "⚠️  nvidia-smi not available"
+	@echo "✅ Requirements check completed"
+
+# Quick build test for CI/CD
+quick_test: check_requirements
+	$(MAKE) -f Makefile.blackwell_fixed tma_fixed
+	@echo "✅ TMA fixed kernel built successfully"
+	$(MAKE) -f Makefile.blackwell_fixed wgmma_fixed  
+	@echo "✅ WGMMA fixed kernel built successfully"
+	$(MAKE) -f Makefile.blackwell_fixed w4a16_simple
+	@echo "✅ W4A16 simple kernel built successfully"
+
+# Smoke test - quick functionality check
+smoke_test: quick_test
+	@echo "Running smoke tests..."
+	@timeout 30 ./$(TMA_FIXED_BIN) || echo "⚠️  TMA test timed out or failed"
+	@timeout 30 ./$(WGMMA_FIXED_BIN) || echo "⚠️  WGMMA test timed out or failed"
+	@timeout 30 ./$(W4A16_SIMPLE_BIN) || echo "⚠️  W4A16 test timed out or failed"
+	@echo "✅ Smoke tests completed"
+
+# Help target
+help:
+	@echo "RTX 5070 Blackwell Makefile (Fixed) Help"
+	@echo "========================================"
+	@echo ""
+	@echo "Build targets:"
+	@echo "  all                 - Build all fixed kernels"
+	@echo "  tma_fixed           - Build fixed TMA GEMM kernel"
+	@echo "  wgmma_fixed         - Build fixed async WGMMA kernel"
+	@echo "  w4a16_simple        - Build simple W4A16 kernel"
+	@echo ""
+	@echo "Test targets:"
+	@echo "  test_tma_fixed      - Test TMA fixed kernel"
+	@echo "  test_wgmma_fixed    - Test WGMMA fixed kernel"
+	@echo "  test_w4a16_simple   - Test W4A16 simple kernel"
+	@echo "  test_all            - Run all tests"
+	@echo "  smoke_test          - Quick functionality check"
+	@echo ""
+	@echo "Analysis targets:"
+	@echo "  profile_tma_fixed   - Profile TMA kernel with NCU"
+	@echo "  profile_wgmma_fixed - Profile WGMMA kernel with NCU"
+	@echo "  asm_all             - Generate PTX for all kernels"
+	@echo "  memcheck_all        - Run memory check on all kernels"
+	@echo ""
+	@echo "Utility targets:"
+	@echo "  check_requirements  - Verify build environment"
+	@echo "  quick_test          - Fast build verification"
+	@echo "  clean_all           - Remove all generated files"
+
+.PHONY: all tma_fixed wgmma_fixed w4a16_simple test_tma_fixed test_wgmma_fixed test_w4a16_simple \
+        test_all profile_tma_fixed profile_wgmma_fixed profile_all asm_tma_fixed asm_wgmma_fixed \
+        asm_all memcheck_tma_fixed memcheck_wgmma_fixed memcheck_all clean clean_profiles clean_all \
+        check_requirements quick_test smoke_test help

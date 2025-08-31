@@ -1,0 +1,226 @@
+# Makefile for RTX 5070 Blackwell implementations
+# Optimized for sm_90 architecture
+
+# Compiler settings
+NVCC = nvcc
+CXX = g++
+
+# Blackwell-specific flags
+NVCC_FLAGS = -std=c++17 -O3 -use_fast_math \
+             -arch=sm_90 \
+             -gencode arch=compute_90,code=sm_90 \
+             --maxrregcount=255 \
+             -Xptxas -O3 \
+             -Xcompiler -O3 \
+             -lineinfo
+
+# Include paths
+INCLUDES = -I./src/blackwell_5070/utils \
+           -I./src/utils \
+           -I$(CUDA_HOME)/include
+
+# Library paths
+LIBS = -L$(CUDA_HOME)/lib64 -lcuda -lcudart -lcublas
+
+# Directories
+SRC_DIR = src/blackwell_5070
+BUILD_DIR = build/blackwell_5070
+BIN_DIR = bin/blackwell_5070
+
+# Create directories
+$(shell mkdir -p $(BUILD_DIR) $(BIN_DIR))
+
+# Source files
+TMA_KERNEL_SRC = $(SRC_DIR)/tma_kernels/blackwell_tma_gemm.cu
+ASYNC_WGMMA_SRC = $(SRC_DIR)/async_wgmma_kernels/blackwell_async_wgmma.cu
+BENCHMARK_SRC = $(SRC_DIR)/benchmarks/blackwell_comprehensive_benchmark.cu
+W4A16_SPECIALIZED_SRC = $(SRC_DIR)/async_wgmma_kernels/blackwell_w4a16_gemv_specialized.cu
+W4A16_TMA_WGMMA_SRC = $(SRC_DIR)/tma_kernels/blackwell_w4a16_tma_wgmma.cu
+W4A16_COMPARISON_SRC = $(SRC_DIR)/benchmarks/blackwell_w4a16_comparison.cu
+
+# Object files
+TMA_KERNEL_OBJ = $(BUILD_DIR)/blackwell_tma_gemm.o
+ASYNC_WGMMA_OBJ = $(BUILD_DIR)/blackwell_async_wgmma.o
+BENCHMARK_OBJ = $(BUILD_DIR)/blackwell_comprehensive_benchmark.o
+W4A16_SPECIALIZED_OBJ = $(BUILD_DIR)/blackwell_w4a16_gemv_specialized.o
+W4A16_TMA_WGMMA_OBJ = $(BUILD_DIR)/blackwell_w4a16_tma_wgmma.o
+W4A16_COMPARISON_OBJ = $(BUILD_DIR)/blackwell_w4a16_comparison.o
+
+# Executables
+TMA_KERNEL_BIN = $(BIN_DIR)/blackwell_tma_gemm
+ASYNC_WGMMA_BIN = $(BIN_DIR)/blackwell_async_wgmma
+BENCHMARK_BIN = $(BIN_DIR)/blackwell_comprehensive_benchmark
+W4A16_SPECIALIZED_BIN = $(BIN_DIR)/blackwell_w4a16_gemv_specialized
+W4A16_TMA_WGMMA_BIN = $(BIN_DIR)/blackwell_w4a16_tma_wgmma
+W4A16_COMPARISON_BIN = $(BIN_DIR)/blackwell_w4a16_comparison
+
+# Default target
+all: tma_kernel async_wgmma benchmark w4a16_specialized w4a16_tma_wgmma w4a16_comparison
+
+# Individual targets
+tma_kernel: $(TMA_KERNEL_BIN)
+async_wgmma: $(ASYNC_WGMMA_BIN)
+benchmark: $(BENCHMARK_BIN)
+w4a16_specialized: $(W4A16_SPECIALIZED_BIN)
+w4a16_tma_wgmma: $(W4A16_TMA_WGMMA_BIN)
+w4a16_comparison: $(W4A16_COMPARISON_BIN)
+
+# Build TMA kernel
+$(TMA_KERNEL_BIN): $(TMA_KERNEL_SRC)
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# Build Async WGMMA kernel
+$(ASYNC_WGMMA_BIN): $(ASYNC_WGMMA_SRC)
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# Build comprehensive benchmark
+$(BENCHMARK_BIN): $(BENCHMARK_SRC)
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# Build W4A16 specialized kernel
+$(W4A16_SPECIALIZED_BIN): $(W4A16_SPECIALIZED_SRC)
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# Build W4A16 TMA+WGMMA kernel
+$(W4A16_TMA_WGMMA_BIN): $(W4A16_TMA_WGMMA_SRC)
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# Build W4A16 comparison benchmark
+$(W4A16_COMPARISON_BIN): $(W4A16_COMPARISON_SRC)
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $< $(LIBS) -lcublas
+
+# Test targets
+test_tma: $(TMA_KERNEL_BIN)
+	@echo "🚀 Testing TMA GEMM kernel..."
+	./$(TMA_KERNEL_BIN)
+
+test_async_wgmma: $(ASYNC_WGMMA_BIN)
+	@echo "⚡ Testing Async WGMMA kernel..."
+	./$(ASYNC_WGMMA_BIN)
+
+test_benchmark: $(BENCHMARK_BIN)
+	@echo "🎯 Running comprehensive benchmark..."
+	./$(BENCHMARK_BIN)
+
+test_w4a16_specialized: $(W4A16_SPECIALIZED_BIN)
+	@echo "🚀 Testing W4A16 specialized kernel..."
+	./$(W4A16_SPECIALIZED_BIN)
+
+test_w4a16_tma_wgmma: $(W4A16_TMA_WGMMA_BIN)
+	@echo "⚡ Testing W4A16 TMA+WGMMA kernel..."
+	./$(W4A16_TMA_WGMMA_BIN)
+
+test_w4a16_comparison: $(W4A16_COMPARISON_BIN)
+	@echo "📊 Running W4A16 comparison benchmark..."
+	./$(W4A16_COMPARISON_BIN)
+
+# Run all tests
+test_all: test_tma test_async_wgmma test_benchmark test_w4a16_specialized test_w4a16_tma_wgmma test_w4a16_comparison
+
+# Performance profiling targets
+profile_tma: $(TMA_KERNEL_BIN)
+	@echo "📊 Profiling TMA kernel with NCU..."
+	ncu --set full -o $(BUILD_DIR)/tma_profile ./$(TMA_KERNEL_BIN)
+
+profile_async_wgmma: $(ASYNC_WGMMA_BIN)
+	@echo "📊 Profiling Async WGMMA kernel with NCU..."
+	ncu --set full -o $(BUILD_DIR)/wgmma_profile ./$(ASYNC_WGMMA_BIN)
+
+profile_all: profile_tma profile_async_wgmma
+
+# Debugging targets
+debug_tma: $(TMA_KERNEL_SRC)
+	$(NVCC) $(NVCC_FLAGS) -g -G $(INCLUDES) -o $(BIN_DIR)/debug_tma_gemm $< $(LIBS)
+
+debug_async_wgmma: $(ASYNC_WGMMA_SRC)
+	$(NVCC) $(NVCC_FLAGS) -g -G $(INCLUDES) -o $(BIN_DIR)/debug_async_wgmma $< $(LIBS)
+
+# Assembly output for instruction analysis
+asm_tma: $(TMA_KERNEL_SRC)
+	$(NVCC) $(NVCC_FLAGS) --ptx $(INCLUDES) -o $(BUILD_DIR)/tma_kernel.ptx $<
+	$(NVCC) $(NVCC_FLAGS) --cubin $(INCLUDES) -o $(BUILD_DIR)/tma_kernel.cubin $<
+
+asm_async_wgmma: $(ASYNC_WGMMA_SRC)
+	$(NVCC) $(NVCC_FLAGS) --ptx $(INCLUDES) -o $(BUILD_DIR)/async_wgmma.ptx $<
+	$(NVCC) $(NVCC_FLAGS) --cubin $(INCLUDES) -o $(BUILD_DIR)/async_wgmma.cubin $<
+
+asm_all: asm_tma asm_async_wgmma
+
+# Memory check targets
+memcheck_tma: $(TMA_KERNEL_BIN)
+	cuda-memcheck ./$(TMA_KERNEL_BIN)
+
+memcheck_async_wgmma: $(ASYNC_WGMMA_BIN)
+	cuda-memcheck ./$(ASYNC_WGMMA_BIN)
+
+memcheck_all: memcheck_tma memcheck_async_wgmma
+
+# Clean targets
+clean:
+	rm -rf $(BUILD_DIR) $(BIN_DIR)
+
+clean_profiles:
+	rm -f $(BUILD_DIR)/*.ncu-rep $(BUILD_DIR)/*.sqlite
+
+clean_all: clean clean_profiles
+
+# Help target
+help:
+	@echo "RTX 5070 Blackwell Makefile Help"
+	@echo "================================="
+	@echo ""
+	@echo "Build targets:"
+	@echo "  all                 - Build all kernels"
+	@echo "  tma_kernel          - Build TMA GEMM kernel"
+	@echo "  async_wgmma         - Build Async WGMMA kernel"
+	@echo "  benchmark           - Build comprehensive benchmark"
+	@echo ""
+	@echo "Test targets:"
+	@echo "  test_tma            - Test TMA kernel"
+	@echo "  test_async_wgmma    - Test Async WGMMA kernel"
+	@echo "  test_benchmark      - Run comprehensive benchmark"
+	@echo "  test_all            - Run all tests"
+	@echo ""
+	@echo "Profiling targets:"
+	@echo "  profile_tma         - Profile TMA kernel with NCU"
+	@echo "  profile_async_wgmma - Profile Async WGMMA kernel with NCU"
+	@echo "  profile_all         - Profile all kernels"
+	@echo ""
+	@echo "Debug targets:"
+	@echo "  debug_tma           - Build TMA kernel with debug info"
+	@echo "  debug_async_wgmma   - Build Async WGMMA kernel with debug info"
+	@echo ""
+	@echo "Assembly targets:"
+	@echo "  asm_tma             - Generate PTX/CUBIN for TMA kernel"
+	@echo "  asm_async_wgmma     - Generate PTX/CUBIN for Async WGMMA kernel"
+	@echo "  asm_all             - Generate assembly for all kernels"
+	@echo ""
+	@echo "Memory check targets:"
+	@echo "  memcheck_tma        - Run cuda-memcheck on TMA kernel"
+	@echo "  memcheck_async_wgmma - Run cuda-memcheck on Async WGMMA kernel"
+	@echo "  memcheck_all        - Run memory check on all kernels"
+	@echo ""
+	@echo "Clean targets:"
+	@echo "  clean               - Remove build files"
+	@echo "  clean_profiles      - Remove profiling files"
+	@echo "  clean_all           - Remove all generated files"
+
+# Requirements check
+check_requirements:
+	@echo "Checking build requirements..."
+	@which nvcc > /dev/null || (echo "❌ NVCC not found. Please install CUDA toolkit."; exit 1)
+	@nvcc --version | grep -q "release 12" || echo "⚠️  Recommended CUDA 12.x for best Blackwell support"
+	@nvidia-smi | grep -q "RTX" || echo "⚠️  RTX GPU not detected"
+	@echo "✅ Requirements check completed"
+
+# Quick test for CI/CD
+quick_test: check_requirements
+	$(MAKE) tma_kernel
+	@echo "✅ TMA kernel built successfully"
+	$(MAKE) async_wgmma
+	@echo "✅ Async WGMMA kernel built successfully"
+
+.PHONY: all tma_kernel async_wgmma benchmark test_tma test_async_wgmma test_benchmark test_all \
+        profile_tma profile_async_wgmma profile_all debug_tma debug_async_wgmma \
+        asm_tma asm_async_wgmma asm_all memcheck_tma memcheck_async_wgmma memcheck_all \
+        clean clean_profiles clean_all help check_requirements quick_test
