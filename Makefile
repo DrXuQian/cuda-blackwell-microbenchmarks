@@ -24,12 +24,14 @@ SIMPLE_GEMV_TARGET = $(BIN_DIR)/simple_gemv_benchmark
 
 # Fusion targets
 LAYERNORM_GEMM_FUSION_TARGET = $(BIN_DIR)/layernorm_gemm_fusion_benchmark
+ENHANCED_LAYERNORM_GEMM_TARGET = $(BIN_DIR)/enhanced_layernorm_gemm_benchmark
+SIMPLE_ASYNC_TARGET = $(BIN_DIR)/simple_async_benchmark
 
 # All targets
 PRIMARY_TARGETS = $(PING_PONG_TARGET) $(WARP_SPEC_TARGET) $(WARP_FINAL_OPT_TARGET) $(WGMMA_TARGET)
 EXPERIMENTAL_TARGETS = $(WARP_OPT_TARGET) $(WARP_SIMPLE_OPT_TARGET)
 MARLIN_TARGETS = $(MARLIN_GEMV_TARGET) $(SIMPLE_GEMV_TARGET)
-FUSION_TARGETS = $(LAYERNORM_GEMM_FUSION_TARGET)
+FUSION_TARGETS = $(LAYERNORM_GEMM_FUSION_TARGET) $(ENHANCED_LAYERNORM_GEMM_TARGET) $(SIMPLE_ASYNC_TARGET)
 ALL_TARGETS = $(PRIMARY_TARGETS) $(EXPERIMENTAL_TARGETS) $(MARLIN_TARGETS) $(FUSION_TARGETS)
 
 # Kernel sources
@@ -48,6 +50,8 @@ SIMPLE_GEMV_SRC = $(BENCHMARK_DIR)/simple_gemv_benchmark.cu
 
 # Fusion sources
 LAYERNORM_GEMM_FUSION_SRC = $(BENCHMARK_DIR)/layernorm_gemm_fusion_benchmark.cu
+ENHANCED_LAYERNORM_GEMM_SRC = $(BENCHMARK_DIR)/enhanced_layernorm_gemm_benchmark.cu
+SIMPLE_ASYNC_SRC = $(BENCHMARK_DIR)/simple_async_benchmark.cu
 
 # Common utilities
 COMMON_DEPS = $(UTILS_DIR)/common.h
@@ -91,6 +95,12 @@ $(MARLIN_GEMV_TARGET): $(MARLIN_GEMV_SRC) $(COMMON_DEPS) $(KERNEL_DIR)/marlin_ge
 # Fusion benchmark builds
 $(LAYERNORM_GEMM_FUSION_TARGET): $(LAYERNORM_GEMM_FUSION_SRC) $(COMMON_DEPS) $(KERNEL_DIR)/layernorm_gemm_fusion.cu
 	$(NVCC) $(CFLAGS) -o $(LAYERNORM_GEMM_FUSION_TARGET) $(LAYERNORM_GEMM_FUSION_SRC)
+
+$(ENHANCED_LAYERNORM_GEMM_TARGET): $(ENHANCED_LAYERNORM_GEMM_SRC) $(COMMON_DEPS) $(KERNEL_DIR)/layernorm_gemm_fusion.cu $(KERNEL_DIR)/layernorm_gemm_async_pipeline.cu $(KERNEL_DIR)/naive_gemm.cu
+	$(NVCC) $(CFLAGS) -o $(ENHANCED_LAYERNORM_GEMM_TARGET) $(ENHANCED_LAYERNORM_GEMM_SRC)
+
+$(SIMPLE_ASYNC_TARGET): $(SIMPLE_ASYNC_SRC) $(COMMON_DEPS) $(KERNEL_DIR)/layernorm_gemm_async_pipeline.cu $(KERNEL_DIR)/naive_gemm.cu
+	$(NVCC) $(CFLAGS) -lcurand -o $(SIMPLE_ASYNC_TARGET) $(SIMPLE_ASYNC_SRC)
 
 # Run primary kernel tests
 run-ping-pong: $(PING_PONG_TARGET)
@@ -140,6 +150,16 @@ run-layernorm-gemm-fusion: $(LAYERNORM_GEMM_FUSION_TARGET)
 	@echo "=========================================="
 	@./$(LAYERNORM_GEMM_FUSION_TARGET)
 
+run-enhanced-layernorm-gemm: $(ENHANCED_LAYERNORM_GEMM_TARGET)
+	@echo "🚀 Running Enhanced LayerNorm+GEMM Async Pipeline Benchmark:"
+	@echo "==========================================================="
+	@./$(ENHANCED_LAYERNORM_GEMM_TARGET)
+
+run-simple-async: $(SIMPLE_ASYNC_TARGET)
+	@echo "🚀 Running Simple Async Pipeline Performance Test:"
+	@echo "================================================="
+	@./$(SIMPLE_ASYNC_TARGET)
+
 # Run primary tests
 run-all: $(PRIMARY_TARGETS)
 	@echo "🚀 Running All Primary Kernel Tests:"
@@ -168,6 +188,14 @@ benchmark: $(PRIMARY_TARGETS)
 profile-simple-gemv: $(SIMPLE_GEMV_TARGET)
 	@echo "🔬 Profiling Simple GEMV kernels with NCU..."
 	ncu --set full --target-processes all --launch-count 1 ./$(SIMPLE_GEMV_TARGET)
+
+profile-enhanced-layernorm-gemm: $(ENHANCED_LAYERNORM_GEMM_TARGET)
+	@echo "🔬 Profiling Enhanced LayerNorm+GEMM Async Pipeline with NCU..."
+	ncu --set full --target-processes all --launch-count 1 ./$(ENHANCED_LAYERNORM_GEMM_TARGET)
+
+profile-layernorm-gemm-metrics: $(ENHANCED_LAYERNORM_GEMM_TARGET)
+	@echo "🔬 Profiling LayerNorm+GEMM with detailed metrics..."
+	ncu --metrics smsp__cycles_elapsed.avg,dram__bytes_read.sum,dram__bytes_write.sum,smsp__sass_thread_inst_executed_op_fadd_pred_on.sum,smsp__sass_thread_inst_executed_op_fmul_pred_on.sum,smsp__sass_thread_inst_executed_op_hmul_pred_on.sum,smsp__warps_launched.sum,smsp__warp_issue_stalled_barrier.avg,smsp__warp_issue_stalled_membar.avg --launch-count 10 ./$(ENHANCED_LAYERNORM_GEMM_TARGET)
 
 profile-marlin-gemv: $(MARLIN_GEMV_TARGET)
 	@echo "🔬 Profiling Marlin GEMV with NCU..."
