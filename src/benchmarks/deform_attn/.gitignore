@@ -1,0 +1,19 @@
+# Compiled binaries
+deform_attn_distributed
+deform_attn_distributed_fixed
+deform_attn_tma
+deform_attn_tma_final
+test_cluster_shm
+test_cluster_large
+
+# Object files
+*.o
+*.obj
+
+# CUDA binaries
+*.cubin
+*.fatbin
+*.ptx
+
+# Build artifacts
+*.exe
