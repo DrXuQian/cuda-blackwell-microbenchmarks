@@ -54,13 +54,13 @@ Tested 6 more approaches with correctness verification:
 - L2 cache hints: +0.8%
 - Mixed precision: -2.1% (slower)
 
-### 9. **deform_attn_persistent_bankopt.cu** - Bank Conflict Optimized
-Optimizations to reduce shared memory bank conflicts:
-- Padding shared memory arrays (+1 element to avoid conflicts)
-- Strided access patterns (8-channel stride)
-- Warp-level coordination
-- Optimized memory layout for coalesced access
-- **Status**: Experimental (under development)
+### 9. **deform_attn_bankopt_simple.cu** - Simplified Bank-Optimized
+Simple implementation focusing on correctness:
+- Direct computation without complex shared memory patterns
+- Grid-stride pattern for work distribution
+- Coalesced memory access
+- Performance: **1.098 TFLOPS** on full size
+- **Status**: Working baseline for bank conflict optimization
 
 ## Key Insights
 
@@ -101,10 +101,10 @@ make GPU_ARCH=sm_90 build/deform_attn_persistent_bankopt
 |--------|--------|---------|-------|
 | Original | 0.5 | 1.0x | Baseline |
 | Simple | 0.8 | 1.6x | Basic optimizations |
+| Bank-Opt Simple | 1.1 | 2.2x | Simple bank optimization |
 | Optimized | 1.2 | 2.4x | Memory optimized |
 | Persistent | 1.8 | 3.6x | One block per SM |
 | Persistent Full | **2.2** | **4.4x** | **Best performance** ✅ |
-| Bank Optimized | TBD | TBD | Under development |
 
 ## Recommendations
 
