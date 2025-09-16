@@ -15,8 +15,8 @@ CUTLASS_PATH ?= /opt/nvidia/cutlass
 NVCC = $(CUDA_PATH)/bin/nvcc
 CXX = g++
 
-# Architecture targets
-ARCHS = 75 80 86 89 90
+# Architecture targets (SM50 for maximum SIMT compatibility)
+ARCHS = 50 75 80 86 89 90
 
 # CUDA architecture flags
 CUDA_ARCH_FLAGS = $(foreach arch,$(ARCHS),-gencode arch=compute_$(arch),code=sm_$(arch))
@@ -31,7 +31,7 @@ INCLUDES = -I$(CUTLASS_PATH)/include \
 NVCC_FLAGS = -std=c++17 --expt-relaxed-constexpr --expt-extended-lambda -O3
 NVCC_FLAGS += $(CUDA_ARCH_FLAGS)
 NVCC_FLAGS += $(INCLUDES)
-NVCC_FLAGS += -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1
+# NVCC_FLAGS += -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1  # Disabled for SIMT compatibility
 
 # Linker flags
 LDFLAGS = -L$(CUDA_PATH)/lib64 -lcudart -lcublas -lcurand

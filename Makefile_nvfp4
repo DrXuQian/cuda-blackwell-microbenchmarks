@@ -1,0 +1,37 @@
+# Makefile for WGMMA NVFP4 kernel
+NVCC = nvcc
+CUDA_ARCH = sm_89
+
+# For RTX 50xx series, use sm_100 when available
+# Currently using sm_89 as placeholder for Blackwell architecture
+
+CFLAGS = -O3 -std=c++14
+NVCCFLAGS = -arch=$(CUDA_ARCH) -lcublas -lcudart
+
+# Source files
+KERNEL_SRC = wgmma_nvfp4_kernel.cu
+TEST_SRC = wgmma_nvfp4_test.cu
+
+# Output binary
+TARGET = wgmma_nvfp4_test
+
+# Default target
+all: $(TARGET)
+
+$(TARGET): $(TEST_SRC) $(KERNEL_SRC)
+	$(NVCC) $(NVCCFLAGS) $(CFLAGS) -o $@ $(TEST_SRC)
+
+# Clean target
+clean:
+	rm -f $(TARGET)
+
+# Run test
+run: $(TARGET)
+	./$(TARGET)
+
+# Show GPU info
+info:
+	nvidia-smi
+	nvcc --version
+
+.PHONY: all clean run info
