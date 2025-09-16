@@ -40,7 +40,7 @@ KERNELS = \
 	$(BUILD_DIR)/deform_attn_persistent_channelsplit \
 	$(BUILD_DIR)/deform_attn_optimizations_suite \
 	$(BUILD_DIR)/deform_attn_optimizations_v2 \
-	$(BUILD_DIR)/deform_attn_ultra
+	$(BUILD_DIR)/deform_attn_persistent_bankopt
 
 # Test programs
 TESTS = \
@@ -119,8 +119,8 @@ $(BUILD_DIR)/deform_attn_optimizations_v2: $(KERNEL_DIR)/deform_attn_optimizatio
 	@echo "🔨 Building optimization v2 kernel..."
 	$(NVCC) $(NVCC_FLAGS) -o $@ $<
 
-$(BUILD_DIR)/deform_attn_ultra: $(KERNEL_DIR)/deform_attn_ultra.cu | $(BUILD_DIR)
-	@echo "🔨 Building ULTRA optimized kernel..."
+$(BUILD_DIR)/deform_attn_persistent_bankopt: $(KERNEL_DIR)/deform_attn_persistent_bankopt.cu | $(BUILD_DIR)
+	@echo "🔨 Building bank-optimized persistent kernel..."
 	$(NVCC) $(NVCC_FLAGS) -o $@ $<
 
 # Build rules for tests

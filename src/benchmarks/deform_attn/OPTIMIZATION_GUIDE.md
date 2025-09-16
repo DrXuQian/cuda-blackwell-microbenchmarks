@@ -54,16 +54,13 @@ Tested 6 more approaches with correctness verification:
 - L2 cache hints: +0.8%
 - Mixed precision: -2.1% (slower)
 
-### 9. **deform_attn_ultra.cu** - Ultra-Optimized
-Combined all best techniques:
-- Persistent kernel pattern
-- 96KB shared memory
-- Smart caching strategy
-- Loop unrolling
-- Precomputed interpolation weights
-- L2 cache optimization
-- Work-stealing load balancing
-- Performance: **1.86 TFLOPS** on RTX 5070
+### 9. **deform_attn_persistent_bankopt.cu** - Bank Conflict Optimized
+Optimizations to reduce shared memory bank conflicts:
+- Padding shared memory arrays (+1 element to avoid conflicts)
+- Strided access patterns (8-channel stride)
+- Warp-level coordination
+- Optimized memory layout for coalesced access
+- **Status**: Experimental (under development)
 
 ## Key Insights
 
@@ -94,8 +91,8 @@ make persistent_full
 # Build and run benchmarks
 make benchmark
 
-# Build ultra-optimized kernel
-make GPU_ARCH=sm_90 build/deform_attn_ultra
+# Build bank-optimized kernel
+make GPU_ARCH=sm_90 build/deform_attn_persistent_bankopt
 ```
 
 ## Performance Summary
@@ -106,8 +103,8 @@ make GPU_ARCH=sm_90 build/deform_attn_ultra
 | Simple | 0.8 | 1.6x | Basic optimizations |
 | Optimized | 1.2 | 2.4x | Memory optimized |
 | Persistent | 1.8 | 3.6x | One block per SM |
-| Persistent Full | 2.2 | 4.4x | Best performance |
-| Ultra | 1.86 | 3.7x | Combined techniques |
+| Persistent Full | **2.2** | **4.4x** | **Best performance** ✅ |
+| Bank Optimized | TBD | TBD | Under development |
 
 ## Recommendations
 
