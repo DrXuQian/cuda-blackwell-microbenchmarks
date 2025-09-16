@@ -36,7 +36,11 @@ KERNELS = \
 	$(BUILD_DIR)/deform_attn_distributed \
 	$(BUILD_DIR)/deform_attn_distributed_small \
 	$(BUILD_DIR)/deform_attn_original \
-	$(BUILD_DIR)/deform_attn_alternative
+	$(BUILD_DIR)/deform_attn_alternative \
+	$(BUILD_DIR)/deform_attn_persistent_channelsplit \
+	$(BUILD_DIR)/deform_attn_optimizations_suite \
+	$(BUILD_DIR)/deform_attn_optimizations_v2 \
+	$(BUILD_DIR)/deform_attn_ultra
 
 # Test programs
 TESTS = \
@@ -101,6 +105,22 @@ $(BUILD_DIR)/deform_attn_original: $(KERNEL_DIR)/deform_attn_original.cu | $(BUI
 
 $(BUILD_DIR)/deform_attn_alternative: $(KERNEL_DIR)/deform_attn_alternative.cu | $(BUILD_DIR)
 	@echo "🔨 Building alternative kernel..."
+	$(NVCC) $(NVCC_FLAGS) -o $@ $<
+
+$(BUILD_DIR)/deform_attn_persistent_channelsplit: $(KERNEL_DIR)/deform_attn_persistent_channelsplit.cu | $(BUILD_DIR)
+	@echo "🔨 Building persistent channel-split kernel..."
+	$(NVCC) $(NVCC_FLAGS) -o $@ $<
+
+$(BUILD_DIR)/deform_attn_optimizations_suite: $(KERNEL_DIR)/deform_attn_optimizations_suite.cu | $(BUILD_DIR)
+	@echo "🔨 Building optimization suite kernel..."
+	$(NVCC) $(NVCC_FLAGS) -o $@ $<
+
+$(BUILD_DIR)/deform_attn_optimizations_v2: $(KERNEL_DIR)/deform_attn_optimizations_v2.cu | $(BUILD_DIR)
+	@echo "🔨 Building optimization v2 kernel..."
+	$(NVCC) $(NVCC_FLAGS) -o $@ $<
+
+$(BUILD_DIR)/deform_attn_ultra: $(KERNEL_DIR)/deform_attn_ultra.cu | $(BUILD_DIR)
+	@echo "🔨 Building ULTRA optimized kernel..."
 	$(NVCC) $(NVCC_FLAGS) -o $@ $<
 
 # Build rules for tests
