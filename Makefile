@@ -276,3 +276,43 @@ gemv: $(SIMPLE_GEMV_TARGET)
 run: run-all
 
 .PHONY: all all-experimental clean clean-experimental clean-gemv run run-ping-pong run-warp-specialized run-warp-optimized run-wgmma run-all run-experimental run-simple-gemv run-marlin-gemv run-layernorm-gemm-fusion benchmark profile-simple-gemv profile-marlin-gemv profile-marlin-gemv-metrics profile-warp profile-optimized compile-commands gemv help
+# OneFlow kernel targets
+ONEFLOW_DIR = $(BENCHMARK_DIR)/oneflow_kernels
+ONEFLOW_LAYERNORM_TARGET = $(BIN_DIR)/test_layernorm
+ONEFLOW_SOFTMAX_TARGET = $(BIN_DIR)/test_softmax
+
+# OneFlow sources
+ONEFLOW_LAYERNORM_SRC = $(ONEFLOW_DIR)/test_layernorm.cu
+ONEFLOW_SOFTMAX_SRC = $(ONEFLOW_DIR)/test_softmax.cu
+
+# Build OneFlow kernels
+$(ONEFLOW_LAYERNORM_TARGET): $(ONEFLOW_LAYERNORM_SRC)
+	$(NVCC) $(CFLAGS) -o $(ONEFLOW_LAYERNORM_TARGET) $(ONEFLOW_LAYERNORM_SRC)
+
+$(ONEFLOW_SOFTMAX_TARGET): $(ONEFLOW_SOFTMAX_SRC)
+	$(NVCC) $(CFLAGS) -o $(ONEFLOW_SOFTMAX_TARGET) $(ONEFLOW_SOFTMAX_SRC)
+
+# Run OneFlow kernel tests
+run-test-layernorm: $(ONEFLOW_LAYERNORM_TARGET)
+	@echo "🔄 Running OneFlow LayerNorm Test (default params):"
+	@echo "==================================================="
+	@./$(ONEFLOW_LAYERNORM_TARGET)
+
+run-test-softmax: $(ONEFLOW_SOFTMAX_TARGET)
+	@echo "🔄 Running OneFlow Softmax Test (default params):"
+	@echo "================================================="
+	@./$(ONEFLOW_SOFTMAX_TARGET)
+
+run-oneflow-tests: $(ONEFLOW_LAYERNORM_TARGET) $(ONEFLOW_SOFTMAX_TARGET)
+	@echo "🚀 Running All OneFlow Kernel Tests:"
+	@echo "===================================="
+	@echo
+	@./$(ONEFLOW_LAYERNORM_TARGET)
+	@echo
+	@echo "---------------------------------------------------"
+	@echo
+	@./$(ONEFLOW_SOFTMAX_TARGET)
+	@echo
+	@echo "✅ All OneFlow tests completed!"
+
+.PHONY: run-test-layernorm run-test-softmax run-oneflow-tests
