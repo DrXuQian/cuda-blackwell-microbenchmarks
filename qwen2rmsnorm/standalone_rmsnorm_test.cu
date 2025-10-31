@@ -232,9 +232,9 @@ int main() {
     printf("==================================================\n\n");
 
     // 配置
-    const int batch = 2;
-    const int seq_len = 4;
-    const int hidden_dim = 128;
+    const int batch = 1;
+    const int seq_len = 5048;
+    const int hidden_dim = 1280;
     const float eps = 1e-6f;
     const int tokens = batch * seq_len;
     const int total = tokens * hidden_dim;
